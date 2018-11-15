@@ -1,6 +1,6 @@
 /* Aubrey McIntosh, PhD
  * 2018-11-14
-*/
+ */
 
 #include <stdio.h>
 
@@ -65,6 +65,7 @@ int main()
 	}
 
 	void copy_to_output() {
+		copy_values();
 		fseek(fields, 0, SEEK_SET);
 		c = fgetc(fields);
 		while(c != EOF)
@@ -74,26 +75,29 @@ int main()
 		}
 	}
 
+	void parse() {
+		consume("{");
+		while(c != EOF && c != '}')
+			{
+			scan_string(fields, " ");
+			c = getchar();
+			skip_white();
+			if('0' <= c && c <= '9') {
+				scan_num(values);
+			} else if(c == '"') {
+				scan_string(values, "'");
+			} else if(c == 't' || c == 'f') {
+				scan_token(values);
+			}
+			if (c != '}') {putc(',', fields); putc(',', values);}
+			}
+		finish_scan();
+	}
+
 	c = getchar();
 	init_fields();
 	init_values();
-	consume("{");
-	while(c != EOF && c != '}')
-		{
-		scan_string(fields, " ");
-		c = getchar();
-		skip_white();
-		if('0' <= c && c <= '9') {
-			scan_num(values);
-		} else if(c == '"') {
-			scan_string(values, "'");
-		} else if(c == 't' || c == 'f') {
-			scan_token(values);
-		}
-		if (c != '}') {putc(',', fields); putc(',', values);}
-		}
-	finish_scan();
-	copy_values();
+	parse();
 	copy_to_output();
 	fclose(fields);
 	fclose(values);
