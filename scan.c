@@ -6,8 +6,8 @@ int main()
 {
 	int c;
         
-	void consume(int *ch) {
-		while(c != EOF && c != ord(ch)) c = getchar();
+	void consume(char *ch) {
+		while(c != EOF && c != (short)*ch) c = getchar();
 		c = getchar();
 	};
 
@@ -18,20 +18,19 @@ int main()
 		putchar(*"<");
 		while(c != EOF && c != '"') c = getchar();
 		c = getchar();
-		putchar(ord(">"));
+		putchar(*">");
         };
 
         void scan_num() {
 		while(c != EOF && (c < '0' || '9' < c)) c = getchar();
-		putchar(ord("<"));
+		putchar(*"<");
 		while(c != EOF && (c < '0' && '9' < c || c=='.')) c = getchar();
-		putchar(ord(">"));
+		putchar(*">");
         };
 
 	c = getchar();
 
-	while(c != EOF && c != '{') c = getchar();
-	c = getchar();
+	consume("{");
 	while(c != EOF)
 		{
 		putchar(c);
