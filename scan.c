@@ -1,3 +1,7 @@
+/* Aubrey McIntosh, PhD
+ * 2018-11-14
+*/
+
 #include <stdio.h>
 
 /* copy input to output */
@@ -6,7 +10,7 @@ int main()
 {
 	int c;
 	FILE *fields = fopen("tmp-scan-fields.txt", "w");
-	FILE *values = fopen("tmp-scan-values.txt", "w");
+	FILE *values = fopen("tmp-scan-values.txt", "w+");
         
 	void consume(char *ch) {
 		while(c != EOF && c != (short)*ch) c = getchar();
@@ -17,13 +21,13 @@ int main()
 		while(c != EOF && c == ' ') c = getchar();
 	};
 
-        void scan_string(FILE *of) {
+        void scan_string(FILE *of, char *delim) {
 		while(c != EOF && c != '"') c = getchar();
 		c = getchar();
-		putc(*"\"", of);
+		putc(*delim, of);
 		while(c != EOF && c != '"') {putc(c, of); c = getchar();}
 		c = getchar();
-		putc(*"\"", of);
+		putc(*delim, of);
         };
 
         void scan_num(FILE *of) {
@@ -41,19 +45,24 @@ int main()
 		fprintf(fields, "INSERT INTO test_table (");
 	};
 
-	void finish_fields() {
+	void finish_scan() {
 		fprintf(fields, ")\n");
-		fclose(fields);
-	};
-
-	void finish_values() {
 		fprintf(values, ");\n");
-		fclose(values);
 	};
 
 	void init_values() {
 		fprintf(values, "VALUES (");
 	};
+
+	void copy_values() {
+		fseek(values, 0, SEEK_SET);
+		c = fgetc(values);
+		while(c != EOF)
+		{
+			putc(c, fields);
+			c = fgetc(values);
+		}
+	}
 
 	c = getchar();
 	init_fields();
@@ -61,20 +70,22 @@ int main()
 	consume("{");
 	while(c != EOF && c != '}')
 		{
-		scan_string(fields);
+		scan_string(fields, " ");
 		c = getchar();
 		skip_white();
 		if('0' <= c && c <= '9') {
 			scan_num(values);
 		} else if(c == '"') {
-			scan_string(values);
+			scan_string(values, "'");
 		} else if(c == 't' || c == 'f') {
 			scan_token(values);
 		}
 		if (c != '}') {putc(',', fields); putc(',', values);}
 		}
-	finish_fields();
-	finish_values();
+	finish_scan();
+	copy_values();
+	fclose(fields);
+	fclose(values);
 
 	return 0;
 }
