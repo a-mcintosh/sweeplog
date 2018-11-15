@@ -9,7 +9,7 @@
 int main()
 {
 	int c;
-	FILE *fields = fopen("tmp-scan-fields.txt", "w");
+	FILE *fields = fopen("tmp-scan-fields.txt", "w+");
 	FILE *values = fopen("tmp-scan-values.txt", "w+");
         
 	void consume(char *ch) {
@@ -64,6 +64,16 @@ int main()
 		}
 	}
 
+	void copy_to_output() {
+		fseek(fields, 0, SEEK_SET);
+		c = fgetc(fields);
+		while(c != EOF)
+		{
+			putchar(c);
+			c = fgetc(fields);
+		}
+	}
+
 	c = getchar();
 	init_fields();
 	init_values();
@@ -84,6 +94,7 @@ int main()
 		}
 	finish_scan();
 	copy_values();
+	copy_to_output();
 	fclose(fields);
 	fclose(values);
 
