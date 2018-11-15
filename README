@@ -1,0 +1,35 @@
+2018-11-15
+scan
+
+scan reads a share log file from ckpool on stdin 
+and emits a postgres INSERT statement on stdout.
+
+the branch create-table reads a share log file on
+stdin and emits a postgres CREATE TABLE statement 
+on stdout.
+
+Example 1:  enter a scan log into the database
+
+psql -c "`scan < ./logs/0000020e/5bec8e4a00000042.sharelog`"
+
+
+Example 2:  recover the per user share contributions
+from the database
+
+ckpool@seed:~/logs/0000020e$ psql -c "SELECT username, SUM(sdiff) FROM test_table GROUP BY username;"
+              username              |   sum   
+------------------------------------+---------
+ 8ZVwkLzengPSjVDP7cj95bgKHXSSbjqgGy | 30.0684
+ 8Zvs4jevJisiwoamYtX6GPCNr18ziybSRZ | 13.9105
+(2 rows)
+
+Example 3:  use find to iterate through the sharelogs
+
+mkdir -p ~/bin
+find . -name "*".sharelog > ~/bin/psql-insert-sharelogs.txt
+echo "#/bin/bash" > ~/bin/psql-insert-sharelogs.sh; chmod u+x ~/bin/psql-insert-sharelogs.sh
+awk '{print "psql -c \"`scan < " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt > ~/bin/psql-insert-sharelogs.sh
+
+
+
+
