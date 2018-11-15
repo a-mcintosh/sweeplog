@@ -11,6 +11,7 @@ int main()
 	int c;
 	FILE *fields = tmpfile();
 	FILE *values = tmpfile();
+        char name[64];
         
 	void consume(char *ch) {
 		while(c != EOF && c != (short)*ch) c = getchar();
@@ -22,10 +23,12 @@ int main()
 	};
 
         void scan_string(FILE *of, char *delim) {
+		int ix=0;
 		while(c != EOF && c != '"') c = getchar();
 		c = getchar();
 		putc(*delim, of);
-		while(c != EOF && c != '"') {putc(c, of); c = getchar();}
+		while(c != EOF && c != '"') {name[ix++] = c; putc(c, of); c = getchar();}
+		name[ix] = '\0';
 		c = getchar();
 		putc(*delim, of);
         };
@@ -75,6 +78,17 @@ int main()
 		}
 	}
 
+        void scan_special(FILE *of, char *delim) {
+		while(c != EOF && c != '"') c = getchar();
+		c = getchar();
+		putc(*delim, of);
+		while(c != EOF && c != '"') {
+			if(c==',') {putc('.', of);} else {putc(c, of);}
+			c = getchar();}
+		c = getchar();
+		putc(*delim, of);
+        };
+
 	void parse() {
 		consume("{");
 		while(c != EOF && c != '}')
@@ -82,7 +96,9 @@ int main()
 			scan_string(fields, " ");
 			c = getchar();
 			skip_white();
-			if('0' <= c && c <= '9') {
+			if(strcmp(name, "createdate") == 0) {
+				scan_special(values, " ");
+			} else if('0' <= c && c <= '9') {
 				scan_num(values);
 			} else if(c == '"') {
 				scan_string(values, "'");

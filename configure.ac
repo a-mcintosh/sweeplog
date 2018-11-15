@@ -112,9 +112,6 @@ AM_CONDITIONAL([ARCH_x86_64], [test x$have_x86_64 = xtrue])
 AM_CONDITIONAL([ARCH_ARM], [test x$have_arm = xtrue])
 AM_CONDITIONAL([ARCH_PPC], [test x$have_ppc = xtrue])
 
-LIBCURL_CHECK_CONFIG(, 7.15.2, ,
-  [AC_MSG_ERROR([Missing required libcurl >= 7.15.2])])
-
 AC_SUBST(PTHREAD_FLAGS)
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(WS2_LIBS)
