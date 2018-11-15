@@ -9,8 +9,8 @@
 int main()
 {
 	int c;
-	FILE *fields = fopen("tmp-scan-fields.txt", "w+");
-	FILE *values = fopen("tmp-scan-values.txt", "w+");
+	FILE *fields = tmpfile();
+	FILE *values = tmpfile();
         
 	void consume(char *ch) {
 		while(c != EOF && c != (short)*ch) c = getchar();
