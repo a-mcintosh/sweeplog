@@ -3,11 +3,16 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <getopt.h>
 
 /* copy input to output */
+static char const *infile;
 
-int main()
+int main(int argc, char **argv)
 {
+	infile = "-";
+	int argind;
 	int c;
 	FILE *fields = tmpfile();
 	FILE *values = tmpfile();
@@ -90,26 +95,30 @@ int main()
         };
 
 	void parse() {
-		consume("{");
-		while(c != EOF && c != '}')
+		while(c != EOF) {
+			consume("{");
+			while(c != EOF && c != '}')
 			{
-			scan_string(fields, " ");
-			c = getchar();
-			skip_white();
-			if(strcmp(name, "createdate") == 0) {
-				scan_special(values, " ");
-			} else if('0' <= c && c <= '9') {
-				scan_num(values);
-			} else if(c == '"') {
-				scan_string(values, "'");
-			} else if(c == 't' || c == 'f') {
-				scan_token(values);
+				scan_string(fields, " ");
+				c = getchar();
+				skip_white();
+				if(strcmp(name, "createdate") == 0) {
+					scan_special(values, " ");
+				} else if('0' <= c && c <= '9') {
+					scan_num(values);
+				} else if(c == '"') {
+					scan_string(values, "'");
+				} else if(c == 't' || c == 'f') {
+					scan_token(values);
+				}
+				if (c != '}') {putc(',', fields); putc(',', values);}
 			}
-			if (c != '}') {putc(',', fields); putc(',', values);}
-			}
+		}
 		finish_scan();
 	}
 
+//  --------------------------------
+	argind = optind;
 	c = getchar();
 	init_fields();
 	init_values();
