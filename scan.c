@@ -1,5 +1,8 @@
 /* Aubrey McIntosh, PhD
  * 2018-11-14
+ * Scan 
+ *   accept the JSON *.sharelog files produced by ckpool
+ *   emit SQL INSERT statements accepted by postgresql
  */
 
 #include <stdio.h>
@@ -13,7 +16,7 @@
 
 #include "error.h"
 
-/* copy input to output */
+/* copy input to output with transformation */
 static char const *inFileName;
 
 int main(int argc, char **argv)
@@ -22,121 +25,130 @@ int main(int argc, char **argv)
 	int argind;
 	bool ok;
 
-	int file_open_mode = O_RDONLY;
-
 	int c;
-	FILE *fields = tmpfile();
-	FILE *values = tmpfile();
+	FILE *fieldStatement;
+	FILE *valueStatement;
         char name[64];
         
-	void consume(char *ch) {
-		while(c != EOF && c != (short)*ch) c = getchar();
+//  ------------------------------------------------------------
+	void consume_including(const char *waypoint) {
+		while(c != EOF && c != (short)*waypoint) c = getchar();
 		c = getchar();
 	};
 
-	void skip_white() {
-		while(c != EOF && c == ' ') c = getchar();
+//  ------------------------------------------------------------
+	void skip_whitespace() {
+		while(c != EOF && (c == ' ' || c == '\t' || c == '\n')) c = getchar();
 	};
 
-        void scan_string(FILE *of, char *delim) {
+//  ------------------------------------------------------------
+        void copy_string_and_requote(FILE *of, const char *new_delim, char name[64]) {
 		int ix=0;
-		while(c != EOF && c != '"') c = getchar();
-		c = getchar();
-		putc(*delim, of);
+		consume_including("\"");
+		putc(*new_delim, of);
 		while(c != EOF && c != '"') {name[ix++] = c; putc(c, of); c = getchar();}
 		name[ix] = '\0';
-		c = getchar();
-		putc(*delim, of);
+		consume_including("\"");
+		putc(*new_delim, of);
         };
 
-        void scan_num(FILE *of) {
+//  ------------------------------------------------------------
+        void copy_number(FILE *of) {
 		while(c != EOF && (c < '0' || '9' < c)) c = getchar();
 		while(c != EOF && (('0' <= c && c <= '9') || c=='.')) {putc(c, of); c = getchar();}
         };
 
-        void scan_token(FILE *of) {
+//  ------------------------------------------------------------
+        void copy_token(FILE *of) {
 		while(c != EOF && (('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || c=='.')) {
 			putc(c, of); c = getchar();
 		}
         };
 
-	void init_fields() {
-		fseek(fields, 0, SEEK_SET);
-		fprintf(fields, "INSERT INTO test_table (Filename,");
+//  ------------------------------------------------------------
+	void initialize_file_fieldStatement() {
+		fieldStatement = tmpfile();
+		fprintf(fieldStatement, "INSERT INTO test_table (Filename,");
 	};
 
-	void finish_scan() {
-		fprintf(fields, ")\n\n");
-		fprintf(values, ");\n\n");
+//  ------------------------------------------------------------
+	void initialize_file_valueStatement(char const *inFileName) {
+		valueStatement = tmpfile();
+		fprintf(valueStatement, "VALUES ('%s',", inFileName);
 	};
 
-	void init_values(char const *inFileName) {
-		fseek(values, 0, SEEK_SET);
-		fprintf(values, "VALUES ('%s',", inFileName);
+//  ------------------------------------------------------------
+	void write_epilogs() {
+		fprintf(fieldStatement, ")\n----\n");
+		fprintf(valueStatement, ");\n----------------\n");
 	};
 
-	void copy_values() {
+//  ------------------------------------------------------------
+	void append_valueStatement_to_fieldStatement() {
 		int aux_c;
-		fseek(values, 0, SEEK_SET);
-		aux_c = fgetc(values);
+		fseek(valueStatement, 0, SEEK_SET);
+		aux_c = fgetc(valueStatement);
 		while(aux_c != EOF)
 		{
-			putc(aux_c, fields);
-			aux_c = fgetc(values);
+			putc(aux_c, fieldStatement);
+			aux_c = fgetc(valueStatement);
 		}
 	}
 
+//  ------------------------------------------------------------
 	void copy_to_output() {
 		int aux_c;
-		copy_values();
-		fseek(fields, 0, SEEK_SET);
-		aux_c = fgetc(fields);
+		append_valueStatement_to_fieldStatement();
+		fseek(fieldStatement, 0, SEEK_SET);
+		aux_c = fgetc(fieldStatement);
 		while(aux_c != EOF)
 		{
 			putchar(aux_c);
-			aux_c = fgetc(fields);
+			aux_c = fgetc(fieldStatement);
 		}
 	}
 
-        void scan_special(FILE *of, char *delim) {
-		while(c != EOF && c != '"') c = getchar();
-		c = getchar();
+//  ------------------------------------------------------------
+        void copy_special(FILE *of, char *delim) {
+		consume_including("\"");
 		putc(*delim, of);
 		while(c != EOF && c != '"') {
 			if(c==',') {putc('.', of);} else {putc(c, of);}
 			c = getchar();}
-		c = getchar();
+		consume_including("\"");
 		putc(*delim, of);
         };
 
+//  ------------------------------------------------------------
 	void parse() {
-		consume("{");
+		consume_including("{");
 		while(c != EOF) {
-			init_fields(); 
-			init_values(inFileName);
+			initialize_file_fieldStatement(); 
+			initialize_file_valueStatement(inFileName);
 			while(c != EOF && c != '}')
 			{
-				scan_string(fields, " ");
+				copy_string_and_requote(fieldStatement, " ", name);
 				c = getchar();
-				skip_white();
+				skip_whitespace();
 				if(strcmp(name, "createdate") == 0) {
-					scan_special(values, " ");
+					copy_special(valueStatement, " ");
 				} else if('0' <= c && c <= '9') {
-					scan_num(values);
+					copy_number(valueStatement);
 				} else if(c == '"') {
-					scan_string(values, "'");
+					copy_string_and_requote(valueStatement, "'", name);
 				} else if(c == 't' || c == 'f') {
-					scan_token(values);
+					copy_token(valueStatement);
 				}
-				if (c != '}') {putc(',', fields); putc(',', values);}
+				if (c != '}') {putc(',', fieldStatement); putc(',', valueStatement);}
 			}
-			consume("}");
-			consume("{");
-			finish_scan();
+			consume_including("}");
+			consume_including("{");
+			write_epilogs();
 			copy_to_output();
 		}
 	}
 
+//  ------------------------------------------------------------
 	void setup_input() {
 		argind = optind;
 		ok = true;
@@ -161,13 +173,13 @@ int main(int argc, char **argv)
 					}
 			}
 	}
-//  --------------------------------
-//  --------------------------------
+
+//  ------------------------------------------------------------
 	setup_input();
 	c = getchar();
 	parse();
-	fclose(fields);
-	fclose(values);
+	fclose(fieldStatement);
+	fclose(valueStatement);
 
 	return 0;
 }
