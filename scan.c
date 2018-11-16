@@ -50,36 +50,40 @@ int main(int argc, char **argv)
         };
 
 	void init_fields() {
+		fseek(fields, 0, SEEK_SET);
 		fprintf(fields, "INSERT INTO test_table (");
 	};
 
 	void finish_scan() {
-		fprintf(fields, ")\n");
-		fprintf(values, ");\n");
+		fprintf(fields, ")\n\n");
+		fprintf(values, ");\n\n");
 	};
 
 	void init_values() {
+		fseek(values, 0, SEEK_SET);
 		fprintf(values, "VALUES (");
 	};
 
 	void copy_values() {
+		int aux_c;
 		fseek(values, 0, SEEK_SET);
-		c = fgetc(values);
-		while(c != EOF)
+		aux_c = fgetc(values);
+		while(aux_c != EOF)
 		{
-			putc(c, fields);
-			c = fgetc(values);
+			putc(aux_c, fields);
+			aux_c = fgetc(values);
 		}
 	}
 
 	void copy_to_output() {
+		int aux_c;
 		copy_values();
 		fseek(fields, 0, SEEK_SET);
-		c = fgetc(fields);
-		while(c != EOF)
+		aux_c = fgetc(fields);
+		while(aux_c != EOF)
 		{
-			putchar(c);
-			c = fgetc(fields);
+			putchar(aux_c);
+			aux_c = fgetc(fields);
 		}
 	}
 
@@ -95,8 +99,10 @@ int main(int argc, char **argv)
         };
 
 	void parse() {
+		consume("{");
 		while(c != EOF) {
-			consume("{");
+			init_fields(); 
+			init_values();
 			while(c != EOF && c != '}')
 			{
 				scan_string(fields, " ");
@@ -113,17 +119,17 @@ int main(int argc, char **argv)
 				}
 				if (c != '}') {putc(',', fields); putc(',', values);}
 			}
+			consume("}");
+			consume("{");
+			finish_scan();
+			copy_to_output();
 		}
-		finish_scan();
 	}
 
 //  --------------------------------
 	argind = optind;
 	c = getchar();
-	init_fields();
-	init_values();
 	parse();
-	copy_to_output();
 	fclose(fields);
 	fclose(values);
 
