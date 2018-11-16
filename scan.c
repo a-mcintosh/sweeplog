@@ -5,14 +5,25 @@
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stropts.h>
+
+#include "error.h"
 
 /* copy input to output */
-static char const *infile;
+static char const *inFileName;
 
 int main(int argc, char **argv)
 {
-	infile = "-";
+	inFileName = "-";
 	int argind;
+	bool ok;
+
+	int file_open_mode = O_RDONLY;
+
 	int c;
 	FILE *fields = tmpfile();
 	FILE *values = tmpfile();
@@ -51,7 +62,7 @@ int main(int argc, char **argv)
 
 	void init_fields() {
 		fseek(fields, 0, SEEK_SET);
-		fprintf(fields, "INSERT INTO test_table (");
+		fprintf(fields, "INSERT INTO test_table (Filename,");
 	};
 
 	void finish_scan() {
@@ -59,9 +70,9 @@ int main(int argc, char **argv)
 		fprintf(values, ");\n\n");
 	};
 
-	void init_values() {
+	void init_values(char const *inFileName) {
 		fseek(values, 0, SEEK_SET);
-		fprintf(values, "VALUES (");
+		fprintf(values, "VALUES ('%s',", inFileName);
 	};
 
 	void copy_values() {
@@ -102,7 +113,7 @@ int main(int argc, char **argv)
 		consume("{");
 		while(c != EOF) {
 			init_fields(); 
-			init_values();
+			init_values(inFileName);
 			while(c != EOF && c != '}')
 			{
 				scan_string(fields, " ");
@@ -126,8 +137,33 @@ int main(int argc, char **argv)
 		}
 	}
 
+	void setup_input() {
+		argind = optind;
+		ok = true;
+		if (argind < argc) {
+			inFileName = argv[argind];
+			printf("-- The file name is %s\n", inFileName);
+		}
+
+		if (!strcmp (inFileName, "-"))
+			{
+				printf("-- Using stdin from -\n");
+			}
+		else
+			{
+				stdin = freopen(inFileName, "r", stdin);
+				if (stdin == 0)
+					{
+						error (0, errno, "%s", (inFileName));
+						ok = false;
+					} else {
+						printf("-- opened without error\n");
+					}
+			}
+	}
 //  --------------------------------
-	argind = optind;
+//  --------------------------------
+	setup_input();
 	c = getchar();
 	parse();
 	fclose(fields);

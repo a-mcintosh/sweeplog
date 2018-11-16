@@ -28,7 +28,7 @@ Example 3:  use find to iterate through the sharelogs
 mkdir -p ~/bin
 find . -name "*".sharelog > ~/bin/psql-insert-sharelogs.txt
 echo "#/bin/bash" > ~/bin/psql-insert-sharelogs.sh; chmod u+x ~/bin/psql-insert-sharelogs.sh
-awk '{print "psql -c \"`scan < " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt > ~/bin/psql-insert-sharelogs.sh
+awk '{print "psql -c \"`scan " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt >> ~/bin/psql-insert-sharelogs.sh
 
 
 
