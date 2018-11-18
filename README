@@ -1,8 +1,22 @@
 2018-11-15
+
+
+SUMMARY
+
 sweeplog
 
 sweeplog reads a share log file from ckpool on stdin 
 and emits a postgres INSERT statement on stdout.
+
+
+INSTALLATION
+
+Use postgresql for the database.
+Create the database tables with create_sweeplog_tables.SQL
+Then follow the generic instructions in INSTALL
+
+
+USAGE
 
 Example 1:  enter a ckpool log into the database
 
