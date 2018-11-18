@@ -11,3 +11,14 @@ install-sh
 missing
 sweeplog-config.h.in
 
+.deps/
+ChangeLog
+Makefile
+Makefile.in
+config.log
+config.status
+configure
+stamp-h1
+sweeplog-config.h
+sweeplog
+
