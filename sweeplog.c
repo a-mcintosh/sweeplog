@@ -50,7 +50,13 @@ int main(int argc, char **argv)
 		int ix=0;
 		consume_including("\"");
 		putc(*new_delim, of);
-		while(c != EOF && c != '"') {name[ix++] = c; putc(c, of); c = getchar();}
+		while(c != EOF && c != '"') {
+			name[ix++] = c;
+			name[ix] = '\0';
+			if(!strcmp(name, "reject-")) c = '_';
+			putc(c, of);
+			c = getchar();
+		}
 		name[ix] = '\0';
 		consume_including("\"");
 		putc(*new_delim, of);
@@ -75,13 +81,13 @@ int main(int argc, char **argv)
 		strcpy(aux_FileName, inFileName);
 
 		shareFieldStatement = tmpfile();
-		fprintf(shareFieldStatement, "INSERT INTO test_share (");
+		fprintf(shareFieldStatement, "INSERT INTO temp_share (");
 
 		shareValueStatement = tmpfile();
 		fprintf(shareValueStatement, "VALUES (");
 
 		logFieldStatement = tmpfile();
-		fprintf(logFieldStatement, "INSERT INTO test_log (filepath, filename, hash");
+		fprintf(logFieldStatement, "INSERT INTO temp_log (filepath, filename, hash");
 
 		logValueStatement = tmpfile();
 		fprintf(logValueStatement, \
