@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS public.temp_log (
     filename	character varying(64)
 );
 
-CREATE TABLE IF NOT EXISTS public.temp_share2 (
+CREATE TABLE IF NOT EXISTS public.temp_share (
     workinfoid	bigint,
     clientid	bigint,
     enonce1	character varying(8),
@@ -17,14 +17,13 @@ CREATE TABLE IF NOT EXISTS public.temp_share2 (
     result	boolean,
     reject_reason	character varying(16),
     errn	bigint,
-    createdate4 character varying(24),
+    createdate  numeric(20,9),
     createby	character varying(8),
     createcode	character varying(16),
     createinet	character varying(40),
     workername	character varying(40),
     username	character varying(40),
     address	character varying(40),
-    agent	character varying(16),
-    createdate	numeric(20,9)
+    agent	character varying(16)
 );
 

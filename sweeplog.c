@@ -33,6 +33,9 @@ int main(int argc, char **argv)
 	FILE *logFieldStatement;
 	FILE *logValueStatement;
         char name[64];
+	long int colno_value;
+	long int colno_field;
+	int colno_aux;
         
 //  ------------------------------------------------------------
 	void consume_including(const char *waypoint) {
@@ -46,32 +49,36 @@ int main(int argc, char **argv)
 	};
 
 //  ------------------------------------------------------------
-        void copy_string_and_requote(FILE *of, const char *new_delim, char name[64]) {
+        void copy_string_and_requote(FILE *of, long int *colno, const char *new_delim, char name[64]) {
 		int ix=0;
 		consume_including("\"");
-		putc(*new_delim, of);
+		putc(*new_delim, of); (*colno)++;
 		while(c != EOF && c != '"') {
 			name[ix++] = c;
 			name[ix] = '\0';
 			if(!strcmp(name, "reject-")) c = '_';
-			putc(c, of);
+			putc(c, of); (*colno)++;
 			c = getchar();
 		}
 		name[ix] = '\0';
 		consume_including("\"");
-		putc(*new_delim, of);
+		putc(*new_delim, of); (*colno)++;
         };
 
 //  ------------------------------------------------------------
-        void copy_number(FILE *of) {
+        void copy_number(FILE *of, long int *colno) {
 		while(c != EOF && (c < '0' || '9' < c)) c = getchar();
-		while(c != EOF && (('0' <= c && c <= '9') || c=='.')) {putc(c, of); c = getchar();}
+		while(c != EOF && (('0' <= c && c <= '9') || c=='.')) {
+			putc(c, of); 
+			c = getchar();
+			(*colno)++;
+		}
         };
 
 //  ------------------------------------------------------------
-        void copy_token(FILE *of) {
+        void copy_token(FILE *of, long int *colno) {
 		while(c != EOF && (('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || c=='.')) {
-			putc(c, of); c = getchar();
+			putc(c, of); c = getchar(); (*colno)++;
 		}
         };
 
@@ -82,9 +89,11 @@ int main(int argc, char **argv)
 
 		shareFieldStatement = tmpfile();
 		fprintf(shareFieldStatement, "INSERT INTO temp_share (");
+		colno_field = ftell(shareFieldStatement);
 
 		shareValueStatement = tmpfile();
 		fprintf(shareValueStatement, "VALUES (");
+		colno_field = ftell(shareValueStatement);
 
 		logFieldStatement = tmpfile();
 		fprintf(logFieldStatement, "INSERT INTO temp_log (filepath, filename, hash");
@@ -139,25 +148,33 @@ int main(int argc, char **argv)
 
 //  ------------------------------------------------------------
 	void parse() {
+		const int lw = 50;
 		consume_including("{");
+		colno_field = 0;
+		colno_value = 0;
+		colno_aux = 0;
 		while(c != EOF) {
 			initialize_files(inFileName); 
 			while(c != EOF && c != '}')
 			{
-				copy_string_and_requote(shareFieldStatement, " ", name);
-				c = getchar();
+				if(lw < colno_field || lw < colno_value) {
+					putc('\n', shareFieldStatement); colno_field = 0;
+					putc('\n', shareValueStatement); colno_value = 0;
+				}
+				copy_string_and_requote(shareFieldStatement, &colno_field, " ", name);
+				consume_including(":");
 				skip_whitespace();
 				if(strcmp(name, "hash") == 0) {
-					copy_string_and_requote(shareValueStatement, "'", name);
+					copy_string_and_requote(shareValueStatement, &colno_value, "'", name);
 					fprintf(logValueStatement, "'%s'", name);
 				} else if(strcmp(name, "createdate") == 0) {
 					copy_special(shareValueStatement, " ");
 				} else if('0' <= c && c <= '9') {
-					copy_number(shareValueStatement);
+					copy_number(shareValueStatement, &colno_value);
 				} else if(c == '"') {
-					copy_string_and_requote(shareValueStatement, "'", name);
+					copy_string_and_requote(shareValueStatement, &colno_value, "'", name);
 				} else if(c == 't' || c == 'f') {
-					copy_token(shareValueStatement);
+					copy_token(shareValueStatement, &colno_value);
 				}
 				if (c != '}') {putc(',', shareFieldStatement); putc(',', shareValueStatement);}
 			}
