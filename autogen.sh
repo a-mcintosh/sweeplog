@@ -5,6 +5,7 @@
 
 set -e
 
+git log > ChangeLog
 aclocal
 autoheader
 automake --gnu --add-missing --copy
