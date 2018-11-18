@@ -1,22 +1,18 @@
 2018-11-15
-scan
+sweeplog
 
-scan reads a share log file from ckpool on stdin 
+sweeplog reads a share log file from ckpool on stdin 
 and emits a postgres INSERT statement on stdout.
 
-the branch create-table reads a share log file on
-stdin and emits a postgres CREATE TABLE statement 
-on stdout.
+Example 1:  enter a ckpool log into the database
 
-Example 1:  enter a scan log into the database
-
-psql -c "`scan < ./logs/0000020e/5bec8e4a00000042.sharelog`"
+psql -c "`sweeplog < ./logs/0000020e/5bec8e4a00000042.sharelog`"
 
 
 Example 2:  recover the per user share contributions
 from the database
 
-ckpool@seed:~/logs/0000020e$ psql -c "SELECT username, SUM(sdiff) FROM test_table GROUP BY username;"
+ckpool@seed:~/logs/0000020e$ psql -c "SELECT username, SUM(sdiff) FROM share_log GROUP BY username;"
               username              |   sum   
 ------------------------------------+---------
  8ZVwkLzengPSjVDP7cj95bgKHXSSbjqgGy | 30.0684
@@ -27,9 +23,30 @@ Example 3:  use find to iterate through the sharelogs
 
 mkdir -p ~/bin
 find . -name "*".sharelog > ~/bin/psql-insert-sharelogs.txt
-echo "#/bin/bash" > ~/bin/psql-insert-sharelogs.sh; chmod u+x ~/bin/psql-insert-sharelogs.sh
-awk '{print "psql -c \"`scan " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt >> ~/bin/psql-insert-sharelogs.sh
+echo "#/bin/bash" > ~/bin/psql-insert-sharelogs.sh;
+echo "# -- `date '+%s'`" >> ~/bin/psql-insert-sharelogs.sh
+chmod u+x ~/bin/psql-insert-sharelogs.sh
+awk '{print "psql -c \"`sweeplog " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt >> ~/bin/psql-insert-sharelogs.sh
+head ~/bin/psql-insert-sharelogs.sh
 
+Example 4:  remove file that have already been INSERTed into the database
+
+psql -A -F " " -o ~/bin/rm-files.sh -c "SELECT DISTINCT 'rm ', FileName FROM test_table;"
+ WHERE  1542357297.635647509 < createdate;"
+
+
+ckpool=> SELECT min(createdate), max(createdate) FROM test_table;
+         max          
+----------------------
+ 1542351297.332101861
+(1 row)
+
+psql -A -F " " -o ~/bin/rm-files.sh -c "SELECT DISTINCT 'rm ', FileName FROM test_table;"
+  WHERE  1542354044.628939076 < createdate;"
+
+CREATE TABLE share_log AS SELECT * FROM test_table;
+INSERT INTO share_log SELECT DISTINCT * FROM test_table;
+DELETE FROM test_table WHERE true;
 
 
 

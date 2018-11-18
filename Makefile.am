@@ -1,9 +1,9 @@
 
-bin_PROGRAMS	= scan
+bin_PROGRAMS	= sweeplog
 
-dist_man_MANS	= scan.1
+dist_man_MANS	= sweeplog.1
 
-scan_SOURCES	= scan.c
+scan_SOURCES	= sweeplog.c
 
 scan_CFLAGS	= -fno-strict-aliasing
 

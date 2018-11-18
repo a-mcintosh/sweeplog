@@ -1,10 +1,10 @@
-AC_INIT([scan], [2.5.0])
+AC_INIT([sweeplog], [2.5.0])
 
 AC_PREREQ([2.59c])
 AC_CANONICAL_SYSTEM
-AC_CONFIG_SRCDIR([scan.c])
+AC_CONFIG_SRCDIR([sweeplog.c])
 AM_INIT_AUTOMAKE([gnu])
-AC_CONFIG_HEADERS([scan-config.h])
+AC_CONFIG_HEADERS([sweeplog-config.h])
 
 dnl Make sure anyone changing configure.ac/Makefile.am has a clue
 AM_MAINTAINER_MODE

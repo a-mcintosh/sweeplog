@@ -3,21 +3,23 @@
  * Scan 
  *   accept the JSON *.sharelog files produced by ckpool
  *   emit SQL INSERT statements accepted by postgresql
+ *
+ * Alternate names for consideration
+ *  sharelog_sweeper
+ *  J2S
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
 #include <stdbool.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <stropts.h>
+#include <libgen.h>
 
 #include "error.h"
 
-/* copy input to output with transformation */
-static char const *inFileName;
+/* transform .sharelog input to .sql output */
+static char *inFileName;
 
 int main(int argc, char **argv)
 {
@@ -26,8 +28,10 @@ int main(int argc, char **argv)
 	bool ok;
 
 	int c;
-	FILE *fieldStatement;
-	FILE *valueStatement;
+	FILE *shareFieldStatement;
+	FILE *shareValueStatement;
+	FILE *logFieldStatement;
+	FILE *logValueStatement;
         char name[64];
         
 //  ------------------------------------------------------------
@@ -66,45 +70,53 @@ int main(int argc, char **argv)
         };
 
 //  ------------------------------------------------------------
-	void initialize_file_fieldStatement() {
-		fieldStatement = tmpfile();
-		fprintf(fieldStatement, "INSERT INTO test_table (Filename,");
-	};
+	void initialize_files(char *inFileName) {
+		char aux_FileName[128];
+		strcpy(aux_FileName, inFileName);
 
-//  ------------------------------------------------------------
-	void initialize_file_valueStatement(char const *inFileName) {
-		valueStatement = tmpfile();
-		fprintf(valueStatement, "VALUES ('%s',", inFileName);
+		shareFieldStatement = tmpfile();
+		fprintf(shareFieldStatement, "INSERT INTO test_share (");
+
+		shareValueStatement = tmpfile();
+		fprintf(shareValueStatement, "VALUES (");
+
+		logFieldStatement = tmpfile();
+		fprintf(logFieldStatement, "INSERT INTO test_log (filepath, filename, hash");
+
+		logValueStatement = tmpfile();
+		fprintf(logValueStatement, \
+			"VALUES ('%s','%s',", dirname(aux_FileName), basename(aux_FileName));
 	};
 
 //  ------------------------------------------------------------
 	void write_epilogs() {
-		fprintf(fieldStatement, ")\n----\n");
-		fprintf(valueStatement, ");\n----------------\n");
+		fprintf(shareFieldStatement, ")\n----\n");
+		fprintf(shareValueStatement, ");\n----------------\n");
+		fprintf(logFieldStatement, ")\n----\n");
+		fprintf(logValueStatement, ");\n----------------\n");
 	};
 
 //  ------------------------------------------------------------
-	void append_valueStatement_to_fieldStatement() {
+	void append_shareValueStatement_to_shareFieldStatement() {
 		int aux_c;
-		fseek(valueStatement, 0, SEEK_SET);
-		aux_c = fgetc(valueStatement);
+		fseek(shareValueStatement, 0, SEEK_SET);
+		aux_c = fgetc(shareValueStatement);
 		while(aux_c != EOF)
 		{
-			putc(aux_c, fieldStatement);
-			aux_c = fgetc(valueStatement);
+			putc(aux_c, shareFieldStatement);
+			aux_c = fgetc(shareValueStatement);
 		}
 	}
 
 //  ------------------------------------------------------------
-	void copy_to_output() {
+	void copy_to_output(FILE *inf) {
 		int aux_c;
-		append_valueStatement_to_fieldStatement();
-		fseek(fieldStatement, 0, SEEK_SET);
-		aux_c = fgetc(fieldStatement);
+		fseek(inf, 0, SEEK_SET);
+		aux_c = fgetc(inf);
 		while(aux_c != EOF)
 		{
 			putchar(aux_c);
-			aux_c = fgetc(fieldStatement);
+			aux_c = fgetc(inf);
 		}
 	}
 
@@ -123,28 +135,33 @@ int main(int argc, char **argv)
 	void parse() {
 		consume_including("{");
 		while(c != EOF) {
-			initialize_file_fieldStatement(); 
-			initialize_file_valueStatement(inFileName);
+			initialize_files(inFileName); 
 			while(c != EOF && c != '}')
 			{
-				copy_string_and_requote(fieldStatement, " ", name);
+				copy_string_and_requote(shareFieldStatement, " ", name);
 				c = getchar();
 				skip_whitespace();
-				if(strcmp(name, "createdate") == 0) {
-					copy_special(valueStatement, " ");
+				if(strcmp(name, "hash") == 0) {
+					copy_string_and_requote(shareValueStatement, "'", name);
+					fprintf(logValueStatement, "'%s'", name);
+				} else if(strcmp(name, "createdate") == 0) {
+					copy_special(shareValueStatement, " ");
 				} else if('0' <= c && c <= '9') {
-					copy_number(valueStatement);
+					copy_number(shareValueStatement);
 				} else if(c == '"') {
-					copy_string_and_requote(valueStatement, "'", name);
+					copy_string_and_requote(shareValueStatement, "'", name);
 				} else if(c == 't' || c == 'f') {
-					copy_token(valueStatement);
+					copy_token(shareValueStatement);
 				}
-				if (c != '}') {putc(',', fieldStatement); putc(',', valueStatement);}
+				if (c != '}') {putc(',', shareFieldStatement); putc(',', shareValueStatement);}
 			}
 			consume_including("}");
 			consume_including("{");
 			write_epilogs();
-			copy_to_output();
+			copy_to_output(logFieldStatement);
+			copy_to_output(logValueStatement);
+			copy_to_output(shareFieldStatement);
+			copy_to_output(shareValueStatement);
 		}
 	}
 
@@ -178,8 +195,10 @@ int main(int argc, char **argv)
 	setup_input();
 	c = getchar();
 	parse();
-	fclose(fieldStatement);
-	fclose(valueStatement);
+	fclose(shareFieldStatement);
+	fclose(shareValueStatement);
+	fclose(logFieldStatement);
+	fclose(logValueStatement);
 
 	return 0;
 }
