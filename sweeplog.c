@@ -1,12 +1,17 @@
 /* Aubrey McIntosh, PhD
  * 2018-11-14
- * Scan 
+ * sweeplog 
  *   accept the JSON *.sharelog files produced by ckpool
- *   emit SQL INSERT statements accepted by postgresql
+ *   emit a .SQL file of INSERT statements accepted by postgresql
  *
  * Alternate names for consideration
  *  sharelog_sweeper
  *  J2S
+ *
+ * Mostly, this just documents that I have enough mojo to get postgresql
+ * up and running, get ckpool up and running, and get bitcoin
+ * up and running, and all talking with each other, a tiny ability
+ * in C, and a github account.
  */
 
 #include <stdio.h>
@@ -33,13 +38,12 @@ int main(int argc, char **argv)
 	FILE *logFieldStatement;
 	FILE *logValueStatement;
         char name[64];
-	long int colno_value;
-	long int colno_field;
-	int colno_aux;
+	long int col_nr_value;
+	long int col_nr_field;
         
 //  ------------------------------------------------------------
-	void consume_including(const char *waypoint) {
-		while(c != EOF && c != (short)*waypoint) c = getchar();
+	void consume_including(char *waypoint) {
+		while(c != EOF && c != *waypoint) c = getchar();
 		c = getchar();
 	};
 
@@ -49,36 +53,36 @@ int main(int argc, char **argv)
 	};
 
 //  ------------------------------------------------------------
-        void copy_string_and_requote(FILE *of, long int *colno, const char *new_delim, char name[64]) {
+        void copy_string_and_requote(FILE *of, long int *col_nr, const char *new_delim, char name[64]) {
 		int ix=0;
 		consume_including("\"");
-		putc(*new_delim, of); (*colno)++;
+		putc(*new_delim, of); (*col_nr)++;
 		while(c != EOF && c != '"') {
 			name[ix++] = c;
 			name[ix] = '\0';
 			if(!strcmp(name, "reject-")) c = '_';
-			putc(c, of); (*colno)++;
+			putc(c, of); (*col_nr)++;
 			c = getchar();
 		}
-		name[ix] = '\0';
 		consume_including("\"");
-		putc(*new_delim, of); (*colno)++;
+		putc(*new_delim, of); (*col_nr)++;
         };
 
 //  ------------------------------------------------------------
-        void copy_number(FILE *of, long int *colno) {
+        void copy_number(FILE *of, long int *col_nr) {
 		while(c != EOF && (c < '0' || '9' < c)) c = getchar();
 		while(c != EOF && (('0' <= c && c <= '9') || c=='.')) {
 			putc(c, of); 
 			c = getchar();
-			(*colno)++;
+			(*col_nr)++;
 		}
         };
 
 //  ------------------------------------------------------------
-        void copy_token(FILE *of, long int *colno) {
-		while(c != EOF && (('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || c=='.')) {
-			putc(c, of); c = getchar(); (*colno)++;
+        void copy_token(FILE *of, long int *col_nr) {
+		while(c != EOF && (('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || c=='.')) {
+			putc(c, of); c = getchar();
+			(*col_nr)++;
 		}
         };
 
@@ -89,11 +93,11 @@ int main(int argc, char **argv)
 
 		shareFieldStatement = tmpfile();
 		fprintf(shareFieldStatement, "INSERT INTO temp_share (");
-		colno_field = ftell(shareFieldStatement);
+		col_nr_field = ftell(shareFieldStatement);
 
 		shareValueStatement = tmpfile();
 		fprintf(shareValueStatement, "VALUES (");
-		colno_field = ftell(shareValueStatement);
+		col_nr_field = ftell(shareValueStatement);
 
 		logFieldStatement = tmpfile();
 		fprintf(logFieldStatement, "INSERT INTO temp_log (filepath, filename, hash");
@@ -150,31 +154,30 @@ int main(int argc, char **argv)
 	void parse() {
 		const int lw = 50;
 		consume_including("{");
-		colno_field = 0;
-		colno_value = 0;
-		colno_aux = 0;
+		col_nr_field = 0;
+		col_nr_value = 0;
 		while(c != EOF) {
 			initialize_files(inFileName); 
 			while(c != EOF && c != '}')
 			{
-				if(lw < colno_field || lw < colno_value) {
-					putc('\n', shareFieldStatement); colno_field = 0;
-					putc('\n', shareValueStatement); colno_value = 0;
+				if(lw < col_nr_field || lw < col_nr_value) {
+					putc('\n', shareFieldStatement); col_nr_field = 0;
+					putc('\n', shareValueStatement); col_nr_value = 0;
 				}
-				copy_string_and_requote(shareFieldStatement, &colno_field, " ", name);
+				copy_string_and_requote(shareFieldStatement, &col_nr_field, " ", name);
 				consume_including(":");
 				skip_whitespace();
 				if(strcmp(name, "hash") == 0) {
-					copy_string_and_requote(shareValueStatement, &colno_value, "'", name);
+					copy_string_and_requote(shareValueStatement, &col_nr_value, "'", name);
 					fprintf(logValueStatement, "'%s'", name);
 				} else if(strcmp(name, "createdate") == 0) {
 					copy_special(shareValueStatement, " ");
 				} else if('0' <= c && c <= '9') {
-					copy_number(shareValueStatement, &colno_value);
+					copy_number(shareValueStatement, &col_nr_value);
 				} else if(c == '"') {
-					copy_string_and_requote(shareValueStatement, &colno_value, "'", name);
+					copy_string_and_requote(shareValueStatement, &col_nr_value, "'", name);
 				} else if(c == 't' || c == 'f') {
-					copy_token(shareValueStatement, &colno_value);
+					copy_token(shareValueStatement, &col_nr_value);
 				}
 				if (c != '}') {putc(',', shareFieldStatement); putc(',', shareValueStatement);}
 			}

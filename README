@@ -5,8 +5,8 @@ SUMMARY
 
 sweeplog
 
-sweeplog reads a share log file from ckpool on stdin 
-and emits a postgres INSERT statement on stdout.
+Sweeplog reads from stdin a share log file created by ckpool 
+and emits to stdout a postgres INSERT statement.
 
 
 INSTALLATION
@@ -18,24 +18,29 @@ Then follow the generic instructions in INSTALL
 
 USAGE
 
-Example 1:  enter a ckpool log into the database
+------------------------------------------------------------------------
+Example 1:  Enter a ckpool log into the database.
 
 psql -c "`sweeplog < ./logs/test/5bee382100000784.sharelog`"
 
 
-Example 2:  recover the per user share contributions
-from the database
+------------------------------------------------------------------------
+Example 2:  Recover the per user share contributions
+from the database.
 
 ckpool@seed:~/logs/0000020e$ psql -c "SELECT username, SUM(sdiff) FROM share_log GROUP BY username;"
               username              |   sum   
 ------------------------------------+---------
- 8ZVwkLzengPSjVDP7cj95bgKHXSSbjqgGy | 30.0684
- 8Zvs4jevJisiwoamYtX6GPCNr18ziybSRZ | 13.9105
+ 14BMjogz69qe8hk9thyzbmR5pg34mVKB1e |  1.6949
+ 18bLcVkviErQi75zB8X39jZXxHNpSZggdC |  2.8825
 (2 rows)
 
-Example 3:  use find to iterate through the sharelogs
+------------------------------------------------------------------------
+Example 3:  Use find to iterate through the recent sharelogs and 
+INSERT into temp tables.
 
 mkdir -p ~/bin
+
 find . -name "*".sharelog > ~/bin/psql-insert-sharelogs.txt
 echo "#/bin/bash" > ~/bin/psql-insert-sharelogs.sh;
 echo "# -- `date '+%s'`" >> ~/bin/psql-insert-sharelogs.sh
@@ -43,7 +48,9 @@ chmod u+x ~/bin/psql-insert-sharelogs.sh
 awk '{print "psql -c \"`sweeplog " $0 "`\""}' ~/bin/psql-insert-sharelogs.txt >> ~/bin/psql-insert-sharelogs.sh
 ~/bin/psql-insert-sharelogs.sh
 
-Example 4:  remove file and directory that have already been INSERTed into the database
+
+------------------------------------------------------------------------
+Example 4:  Remove files and directorys that are confirmed as INSERTed into the database.
 
 echo '#!/bin/bash' > ~/bin/rm-files.sh
 psql -A -F " " -c "SELECT DISTINCT 'rm ', filepath, filename FROM temp_log ORDER BY filepath;" | awk '/rm/{print $1 "  " $2 "/" $3}' >> ~/bin/rm-files.sh
@@ -51,12 +58,19 @@ psql -A -F " " -c "SELECT DISTINCT 'rm ', filepath, filename FROM temp_log ORDER
 echo '#!/bin/bash' > ~/bin/rm-dir.sh
 psql -A -F " " -c "SELECT DISTINCT 'rmdir ', filepath FROM temp_log ORDER BY filepath;" | awk '/rm/{print $1 "  " $2}' >> ~/bin/rm-dir.sh
 
+~/bin/rm-files.sh
+~/bin/rm-dir.sh
+ls -l logs
 
-Example 5:  move from temp table to the real deal
+
+------------------------------------------------------------------------
+Example 5:  Move info from temp_share to the share_log.
 
 CREATE TABLE share_log AS SELECT * FROM temp_share;  -- one time only
+
 INSERT INTO share_log SELECT DISTINCT * FROM temp_share;
 DELETE FROM temp_share WHERE true;
+DELETE FROM temp_log WHERE true;
 
 
 
